@@ -2,6 +2,8 @@ import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
+import Login from './pages/Login';
+import ProtectedRoute from './components/ProtectedRoute';
 import PlaceholderPage from './pages/PlaceholderPage';
 
 // Simple wrappers for the placeholder pages
@@ -11,14 +13,21 @@ const Agenda = () => <PlaceholderPage title="Agenda" />;
 
 function App() {
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/internaciones" element={<Internaciones />} />
-        <Route path="/guardia" element={<Guardia />} />
-        <Route path="/agenda" element={<Agenda />} />
-      </Routes>
-    </Layout>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="*" element={
+        <ProtectedRoute>
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/internaciones" element={<Internaciones />} />
+              <Route path="/guardia" element={<Guardia />} />
+              <Route path="/agenda" element={<Agenda />} />
+            </Routes>
+          </Layout>
+        </ProtectedRoute>
+      } />
+    </Routes>
   );
 }
 

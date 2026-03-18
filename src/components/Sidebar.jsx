@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Bed, Ambulance, Calendar, Upload, User } from 'lucide-react';
+import { LayoutDashboard, Bed, Ambulance, Calendar, User, LogOut } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 const Sidebar = () => {
     const menuItems = [
@@ -37,14 +38,23 @@ const Sidebar = () => {
             </nav>
 
             <div className="p-4 border-t border-[#30363d] bg-[#1c2128]/50">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#30363d] flex items-center justify-center text-[#2f81f7]">
-                        <User size={18} />
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#30363d] flex items-center justify-center text-[#2f81f7]">
+                            <User size={18} />
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-sm font-medium text-[#e6edf3]">Dr. Usuario</span>
+                            <span className="text-xs text-[#7d8590]">Hospital PN</span>
+                        </div>
                     </div>
-                    <div className="flex flex-col">
-                        <span className="text-sm font-medium text-[#e6edf3]">Dr. Usuario</span>
-                        <span className="text-xs text-[#7d8590]">Hospital PN</span>
-                    </div>
+                    <button 
+                        onClick={() => supabase.auth.signOut()}
+                        className="p-2 text-[#7d8590] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                        title="Cerrar sesión"
+                    >
+                        <LogOut size={18} />
+                    </button>
                 </div>
             </div>
         </aside>
