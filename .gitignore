@@ -34,3 +34,6 @@ env/
 .env
 .pytest_cache/
 
+# Admin scripts and logs
+upload_csv.py
+historial_cargas.txt

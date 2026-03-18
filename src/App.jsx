@@ -2,7 +2,6 @@ import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
-import Cargar from './pages/Cargar';
 import PlaceholderPage from './pages/PlaceholderPage';
 
 // Simple wrappers for the placeholder pages
@@ -18,7 +17,6 @@ function App() {
         <Route path="/internaciones" element={<Internaciones />} />
         <Route path="/guardia" element={<Guardia />} />
         <Route path="/agenda" element={<Agenda />} />
-        <Route path="/cargar" element={<Cargar />} />
       </Routes>
     </Layout>
   );

@@ -8,7 +8,6 @@ const Sidebar = () => {
         { name: 'Internaciones', path: '/internaciones', icon: <Bed size={20} /> },
         { name: 'Guardia', path: '/guardia', icon: <Ambulance size={20} /> },
         { name: 'Agenda', path: '/agenda', icon: <Calendar size={20} /> },
-        { name: 'Cargar datos', path: '/cargar', icon: <Upload size={20} /> },
     ];
 
     return (
