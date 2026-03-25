@@ -46,17 +46,17 @@ const Dashboard = () => {
         async function loadDashboardData() {
             setStats(s => ({ ...s, loading: true }));
             try {
-                // Fetch Counts by Service for the KPIs
-                const { data: countsData, error: countsError } = await supabase
-                    .from('registros_guardia')
-                    .select('servicio');
+                // Fetch Totals from the new KPI View (Optimized for 170k rows)
+                const { data: totalsData, error: totalsError } = await supabase
+                    .from('v_kpi_totales')
+                    .select('*');
 
-                if (countsError) throw countsError;
+                if (totalsError) throw totalsError;
 
                 const counts = { Adultos: 0, Pediatría: 0 };
-                countsData.forEach(r => {
-                    if (r.servicio === 'Adultos') counts.Adultos++;
-                    if (r.servicio === 'Pediatría') counts.Pediatría++;
+                totalsData.forEach(r => {
+                    if (r.servicio === 'Adultos') counts.Adultos = r.total;
+                    if (r.servicio === 'Pediatría') counts.Pediatría = r.total;
                 });
 
                 // Fetch Top Diagnoses filtered by service if needed
