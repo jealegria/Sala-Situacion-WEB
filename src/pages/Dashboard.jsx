@@ -126,76 +126,41 @@ const Dashboard = () => {
                     get2025Counts('Pediatría')
                 ]);
 
-                // 1. Buscar el mes más reciente que esté "CERRADO" (datos hasta el día 25+)
-                let targetMonth, targetYear;
+                // 1. Obtener la fecha límite (último registro absoluto)
+                const { data: latestRecord } = await supabase
+                    .from('registros_guardia')
+                    .select('fecha_de_ingreso')
+                    .order('fecha_de_ingreso', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (!latestRecord) throw new Error("No hay datos en la base");
+
+                const limitDate = new Date(latestRecord.fecha_de_ingreso);
+                let targetMonth = limitDate.getMonth();
+                let targetYear = limitDate.getFullYear();
+
+                // 2. Verificar si el mes está completo (comparando el día del último registro vs el último día de ese mes)
+                const lastDayOfTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
                 
-                // Función para verificar si un mes tiene datos de fin de mes
-                const getLatestClosedMonth = async () => {
-                    // Obtenemos el registro más reciente de toda la tabla
-                    const { data: lastRecord } = await supabase
-                        .from('registros_guardia')
-                        .select('fecha_de_ingreso')
-                        .order('fecha_de_ingreso', { ascending: false })
-                        .limit(1)
-                        .single();
-                    
-                    if (!lastRecord) return null;
-
-                    let checkDate = new Date(lastRecord.fecha_de_ingreso);
-                    
-                    // Bucle para retroceder meses hasta encontrar uno completo
-                    for (let i = 0; i < 12; i++) { // Máximo 12 meses atrás
-                        const year = checkDate.getFullYear();
-                        const month = checkDate.getMonth();
-                        
-                        // Consultamos el último día registrado en ese mes específico
-                        const startOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-                        const endOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-31 23:59:59`;
-
-                        const { data: monthLastRecord } = await supabase
-                            .from('registros_guardia')
-                            .select('fecha_de_ingreso')
-                            .gte('fecha_de_ingreso', startOfMonth)
-                            .lte('fecha_de_ingreso', endOfMonth)
-                            .order('fecha_de_ingreso', { ascending: false })
-                            .limit(1)
-                            .single();
-
-                        if (monthLastRecord) {
-                            const lastDayInMonth = new Date(monthLastRecord.fecha_de_ingreso).getDate();
-                            // Si el último día es 25 o más, consideramos el mes CERRADO
-                            if (lastDayInMonth >= 25) {
-                                return { month, year };
-                            }
-                        }
-                        // Si no, retrocedemos al mes anterior y seguimos buscando
-                        checkDate = new Date(year, month - 1, 1);
-                    }
-                    return null;
-                };
-
-                const closedMonth = await getLatestClosedMonth();
-
-                if (closedMonth) {
-                    targetMonth = closedMonth.month;
-                    targetYear = closedMonth.year;
-                } else {
-                    // Fallback total si nada funciona
-                    const d = new Date();
-                    d.setMonth(d.getMonth() - 1);
-                    targetMonth = d.getMonth();
-                    targetYear = d.getFullYear();
+                if (limitDate.getDate() < lastDayOfTargetMonth) {
+                    // Si no está completo, retrocedemos un mes
+                    const prevMonthDate = new Date(targetYear, targetMonth - 1, 1);
+                    targetMonth = prevMonthDate.getMonth();
+                    targetYear = prevMonthDate.getFullYear();
                 }
 
+                // 3. Preparar rangos para el mes completo detectado vs mismo mes año pasado
                 const lastYear = targetYear - 1;
-                const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                const monthStr = String(targetMonth + 1).padStart(2, '0');
+                const lastDayOfMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
                 
-                const getRangeCounts = async (serv, year) => {
-                    const monthStr = String(targetMonth + 1).padStart(2, '0');
-                    const start = `${year}-${monthStr}-01`;
-                    const lastDay = new Date(year, targetMonth + 1, 0).getDate();
-                    const end = `${year}-${monthStr}-${String(lastDay).padStart(2, '0')} 23:59:59`;
+                const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
+                const getFullMonthCount = async (serv, year) => {
+                    const start = `${year}-${monthStr}-01`;
+                    const end = `${year}-${monthStr}-${lastDayOfMonth} 23:59:59`;
+                    
                     const { count, error } = await supabase.from('registros_guardia')
                         .select('id', { count: 'exact', head: true })
                         .eq('servicio', serv)
@@ -206,11 +171,12 @@ const Dashboard = () => {
                     return count || 0;
                 };
 
+                // 4. Ejecutar comparativa
                 const [currentA, prevA, currentP, prevP] = await Promise.all([
-                    getRangeCounts('Adultos', targetYear),
-                    getRangeCounts('Adultos', lastYear),
-                    getRangeCounts('Pediatría', targetYear),
-                    getRangeCounts('Pediatría', lastYear)
+                    getFullMonthCount('Adultos', targetYear),
+                    getFullMonthCount('Adultos', lastYear),
+                    getFullMonthCount('Pediatría', targetYear),
+                    getFullMonthCount('Pediatría', lastYear)
                 ]);
 
                 setStats({
