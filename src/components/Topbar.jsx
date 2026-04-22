@@ -17,9 +17,11 @@ const Topbar = () => {
 
     return (
         <header className="h-16 bg-[#0f1117]/80 backdrop-blur-md border-b border-[#30363d] flex items-center px-8 sticky top-0 z-40">
-            <h2 className="text-lg font-semibold text-[#e6edf3]">
-                {getPageTitle(location.pathname)}
-            </h2>
+            {location.pathname !== '/' && (
+                <h2 className="text-lg font-semibold text-[#e6edf3]">
+                    {getPageTitle(location.pathname)}
+                </h2>
+            )}
         </header>
     );
 };
