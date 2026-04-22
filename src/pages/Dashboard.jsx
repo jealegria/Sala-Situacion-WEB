@@ -126,31 +126,54 @@ const Dashboard = () => {
                     get2025Counts('Pediatría')
                 ]);
 
-                // 1. Detectar el último mes con datos
-                const { data: latestRecord } = await supabase
+                // 1. Buscar el mes más reciente con datos "completos"
+                // Buscamos registros del último año para analizar la continuidad
+                const now = new Date();
+                const { data: recentRecords } = await supabase
                     .from('registros_guardia')
                     .select('fecha_de_ingreso')
+                    .lte('fecha_de_ingreso', now.toISOString())
                     .order('fecha_de_ingreso', { ascending: false })
-                    .limit(1)
-                    .single();
+                    .limit(50); // Tomamos una muestra de los últimos 50
 
-                const referenceDate = latestRecord ? new Date(latestRecord.fecha_de_ingreso) : new Date();
-                const targetYear = referenceDate.getFullYear();
-                const targetMonth = referenceDate.getMonth();
-                const lastYear = targetYear - 1;
+                let targetMonth, targetYear;
                 
-                // Si el mes detectado es el mes actual, comparamos hasta "hoy"
-                // Si es un mes pasado, comparamos el mes completo
-                const today = new Date();
-                const isCurrentMonth = targetYear === today.getFullYear() && targetMonth === today.getMonth();
-                const dayOfMonth = isCurrentMonth ? today.getDate() : 31;
+                if (recentRecords && recentRecords.length > 0) {
+                    const latestDate = new Date(recentRecords[0].fecha_de_ingreso);
+                    const latestMonth = latestDate.getMonth();
+                    const latestYear = latestDate.getFullYear();
+                    
+                    // Verificamos si el mes parece "completo" 
+                    // (Si el último dato es después del día 25 o si estamos en un mes anterior al actual)
+                    const isBeforeCurrentMonth = (latestYear < now.getFullYear()) || (latestYear === now.getFullYear() && latestMonth < now.getMonth());
+                    const isEndOfMonth = latestDate.getDate() >= 25;
 
+                    if (isBeforeCurrentMonth && isEndOfMonth) {
+                        targetMonth = latestMonth;
+                        targetYear = latestYear;
+                    } else {
+                        // Si el último mes es el actual o está incompleto, retrocedemos uno
+                        const fallbackDate = new Date(latestYear, latestMonth - 1, 1);
+                        targetMonth = fallbackDate.getMonth();
+                        targetYear = fallbackDate.getFullYear();
+                    }
+                } else {
+                    // Si no hay datos, usamos el mes pasado por defecto
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - 1);
+                    targetMonth = d.getMonth();
+                    targetYear = d.getFullYear();
+                }
+
+                const lastYear = targetYear - 1;
                 const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
                 
                 const getRangeCounts = async (serv, year) => {
                     const monthStr = String(targetMonth + 1).padStart(2, '0');
                     const start = `${year}-${monthStr}-01`;
-                    const end = `${year}-${monthStr}-${String(dayOfMonth).padStart(2, '0')} 23:59:59`;
+                    // Calculamos el último día del mes para ese año/mes específico
+                    const lastDay = new Date(year, targetMonth + 1, 0).getDate();
+                    const end = `${year}-${monthStr}-${String(lastDay).padStart(2, '0')} 23:59:59`;
 
                     const { count, error } = await supabase.from('registros_guardia')
                         .select('id', { count: 'exact', head: true })
