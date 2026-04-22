@@ -126,39 +126,61 @@ const Dashboard = () => {
                     get2025Counts('Pediatría')
                 ]);
 
-                // 1. Buscar el mes más reciente con datos "completos"
-                // Buscamos registros del último año para analizar la continuidad
-                const now = new Date();
-                const { data: recentRecords } = await supabase
-                    .from('registros_guardia')
-                    .select('fecha_de_ingreso')
-                    .lte('fecha_de_ingreso', now.toISOString())
-                    .order('fecha_de_ingreso', { ascending: false })
-                    .limit(50); // Tomamos una muestra de los últimos 50
-
+                // 1. Buscar el mes más reciente que esté "CERRADO" (datos hasta el día 25+)
                 let targetMonth, targetYear;
                 
-                if (recentRecords && recentRecords.length > 0) {
-                    const latestDate = new Date(recentRecords[0].fecha_de_ingreso);
-                    const latestMonth = latestDate.getMonth();
-                    const latestYear = latestDate.getFullYear();
+                // Función para verificar si un mes tiene datos de fin de mes
+                const getLatestClosedMonth = async () => {
+                    // Obtenemos el registro más reciente de toda la tabla
+                    const { data: lastRecord } = await supabase
+                        .from('registros_guardia')
+                        .select('fecha_de_ingreso')
+                        .order('fecha_de_ingreso', { ascending: false })
+                        .limit(1)
+                        .single();
                     
-                    // Verificamos si el mes parece "completo" 
-                    // (Si el último dato es después del día 25 o si estamos en un mes anterior al actual)
-                    const isBeforeCurrentMonth = (latestYear < now.getFullYear()) || (latestYear === now.getFullYear() && latestMonth < now.getMonth());
-                    const isEndOfMonth = latestDate.getDate() >= 25;
+                    if (!lastRecord) return null;
 
-                    if (isBeforeCurrentMonth && isEndOfMonth) {
-                        targetMonth = latestMonth;
-                        targetYear = latestYear;
-                    } else {
-                        // Si el último mes es el actual o está incompleto, retrocedemos uno
-                        const fallbackDate = new Date(latestYear, latestMonth - 1, 1);
-                        targetMonth = fallbackDate.getMonth();
-                        targetYear = fallbackDate.getFullYear();
+                    let checkDate = new Date(lastRecord.fecha_de_ingreso);
+                    
+                    // Bucle para retroceder meses hasta encontrar uno completo
+                    for (let i = 0; i < 12; i++) { // Máximo 12 meses atrás
+                        const year = checkDate.getFullYear();
+                        const month = checkDate.getMonth();
+                        
+                        // Consultamos el último día registrado en ese mes específico
+                        const startOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+                        const endOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-31 23:59:59`;
+
+                        const { data: monthLastRecord } = await supabase
+                            .from('registros_guardia')
+                            .select('fecha_de_ingreso')
+                            .gte('fecha_de_ingreso', startOfMonth)
+                            .lte('fecha_de_ingreso', endOfMonth)
+                            .order('fecha_de_ingreso', { ascending: false })
+                            .limit(1)
+                            .single();
+
+                        if (monthLastRecord) {
+                            const lastDayInMonth = new Date(monthLastRecord.fecha_de_ingreso).getDate();
+                            // Si el último día es 25 o más, consideramos el mes CERRADO
+                            if (lastDayInMonth >= 25) {
+                                return { month, year };
+                            }
+                        }
+                        // Si no, retrocedemos al mes anterior y seguimos buscando
+                        checkDate = new Date(year, month - 1, 1);
                     }
+                    return null;
+                };
+
+                const closedMonth = await getLatestClosedMonth();
+
+                if (closedMonth) {
+                    targetMonth = closedMonth.month;
+                    targetYear = closedMonth.year;
                 } else {
-                    // Si no hay datos, usamos el mes pasado por defecto
+                    // Fallback total si nada funciona
                     const d = new Date();
                     d.setMonth(d.getMonth() - 1);
                     targetMonth = d.getMonth();
@@ -171,7 +193,6 @@ const Dashboard = () => {
                 const getRangeCounts = async (serv, year) => {
                     const monthStr = String(targetMonth + 1).padStart(2, '0');
                     const start = `${year}-${monthStr}-01`;
-                    // Calculamos el último día del mes para ese año/mes específico
                     const lastDay = new Date(year, targetMonth + 1, 0).getDate();
                     const end = `${year}-${monthStr}-${String(lastDay).padStart(2, '0')} 23:59:59`;
 
