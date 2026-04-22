@@ -47,40 +47,43 @@ const ServiceStats = ({ title, dailyAvg, monthlyAvg, totalYear, icon: Icon, colo
     </div>
 );
 
-const ComparisonCard = ({ title, current, previous, monthName }) => {
+const ComparisonCard = ({ title, current, previous, monthName, year }) => {
     const diff = current - previous;
     const percent = previous > 0 ? (diff / previous) * 100 : 0;
     const isIncrease = diff > 0;
 
     return (
-        <div className="bg-[#1c2128]/50 border border-[#30363d] rounded-2xl p-6 backdrop-blur-sm group hover:border-[#2f81f7]/30 transition-all">
-            <div className="flex justify-between items-start mb-6">
+        <div className="bg-[#1c2128]/50 border border-[#30363d] rounded-2xl p-7 backdrop-blur-sm group hover:border-[#2f81f7]/40 transition-all border-l-4" style={{ borderLeftColor: isIncrease ? '#f97316' : '#10b981' }}>
+            <div className="flex justify-between items-start mb-4">
                 <div>
-                    <h3 className="text-sm font-bold text-[#8b949e] uppercase tracking-wider mb-1">{title}</h3>
-                    <p className="text-[#7d8590] text-[10px] font-medium">Comparativa: {monthName} 2025 vs 2026</p>
+                    <div className="flex items-center gap-2 mb-1">
+                        <TrendingUp size={14} className="text-[#2f81f7]" />
+                        <h3 className="text-[11px] font-black text-[#8b949e] uppercase tracking-[0.2em]">{title}</h3>
+                    </div>
+                    <p className="text-[#e6edf3] text-lg font-bold">Resumen de {monthName}</p>
                 </div>
-                <div className={`p-2 rounded-lg ${isIncrease ? 'bg-orange-500/10 text-orange-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                    {isIncrease ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
+                <div className={`text-xs font-bold px-2.5 py-1 rounded-full ${isIncrease ? 'bg-orange-500/10 text-orange-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                    {isIncrease ? '↑' : '↓'} {Math.abs(percent).toFixed(1)}%
                 </div>
             </div>
 
-            <div className="flex items-end gap-6">
-                <div>
-                    <p className="text-4xl font-black text-[#e6edf3] mb-1">{current.toLocaleString()}</p>
-                    <p className="text-[10px] text-[#7d8590] uppercase font-bold tracking-widest">En lo que va del mes</p>
+            <div className="grid grid-cols-2 gap-8 mt-6">
+                <div className="relative">
+                    <p className="text-[#7d8590] text-[10px] font-bold uppercase tracking-wider mb-1">Año {year}</p>
+                    <p className="text-4xl font-black text-[#e6edf3] tracking-tight">{current.toLocaleString()}</p>
                 </div>
-                
-                <div className="flex-1 pb-1">
-                    <div className={`flex items-center gap-1 font-bold text-sm ${isIncrease ? 'text-orange-500' : 'text-emerald-500'}`}>
-                        {isIncrease ? '+' : ''}{percent.toFixed(1)}%
-                        <span className="text-[10px] font-normal text-[#7d8590] ml-1">vs {previous} ayer</span>
-                    </div>
-                    <div className="w-full bg-[#30363d] h-1.5 rounded-full mt-2 overflow-hidden">
-                        <div 
-                            className={`h-full rounded-full ${isIncrease ? 'bg-orange-500' : 'bg-emerald-500'}`}
-                            style={{ width: `${Math.min(Math.abs(percent), 100)}%` }}
-                        ></div>
-                    </div>
+                <div className="relative opacity-60">
+                    <p className="text-[#7d8590] text-[10px] font-bold uppercase tracking-wider mb-1">Año {year - 1}</p>
+                    <p className="text-3xl font-bold text-[#8b949e] tracking-tight">{previous.toLocaleString()}</p>
+                </div>
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-[#30363d]/50">
+                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
+                    <span className="text-[#7d8590]">Diferencia Nominal</span>
+                    <span className={isIncrease ? 'text-orange-500' : 'text-emerald-500'}>
+                        {isIncrease ? '+' : ''}{diff.toLocaleString()} atenciones
+                    </span>
                 </div>
             </div>
         </div>
@@ -96,7 +99,8 @@ const Dashboard = () => {
         comparison: {
             adultos: { current: 0, previous: 0 },
             pediatria: { current: 0, previous: 0 },
-            monthName: ""
+            monthName: "",
+            year: new Date().getFullYear()
         },
         loading: true
     });
@@ -122,20 +126,31 @@ const Dashboard = () => {
                     get2025Counts('Pediatría')
                 ]);
 
-                // Lógica de Comparación Interanual
+                // 1. Detectar el último mes con datos
+                const { data: latestRecord } = await supabase
+                    .from('registros_guardia')
+                    .select('fecha_de_ingreso')
+                    .order('fecha_de_ingreso', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                const referenceDate = latestRecord ? new Date(latestRecord.fecha_de_ingreso) : new Date();
+                const targetYear = referenceDate.getFullYear();
+                const targetMonth = referenceDate.getMonth();
+                const lastYear = targetYear - 1;
+                
+                // Si el mes detectado es el mes actual, comparamos hasta "hoy"
+                // Si es un mes pasado, comparamos el mes completo
                 const today = new Date();
-                const currentYear = today.getFullYear();
-                const lastYear = currentYear - 1;
-                const currentMonth = today.getMonth(); // 0-indexed
-                const dayOfMonth = today.getDate();
+                const isCurrentMonth = targetYear === today.getFullYear() && targetMonth === today.getMonth();
+                const dayOfMonth = isCurrentMonth ? today.getDate() : 31;
 
                 const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
                 
-                const getRangeCounts = async (serv, year, isUntilToday = false) => {
-                    const start = `${year}-${String(currentMonth + 1).padStart(2, '0')}-01`;
-                    const end = isUntilToday 
-                        ? `${year}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayOfMonth).padStart(2, '0')} 23:59:59`
-                        : `${year}-${String(currentMonth + 1).padStart(2, '0')}-31 23:59:59`; // Supabase/Postgres manejará meses cortos
+                const getRangeCounts = async (serv, year) => {
+                    const monthStr = String(targetMonth + 1).padStart(2, '0');
+                    const start = `${year}-${monthStr}-01`;
+                    const end = `${year}-${monthStr}-${String(dayOfMonth).padStart(2, '0')} 23:59:59`;
 
                     const { count, error } = await supabase.from('registros_guardia')
                         .select('id', { count: 'exact', head: true })
@@ -148,10 +163,10 @@ const Dashboard = () => {
                 };
 
                 const [currentA, prevA, currentP, prevP] = await Promise.all([
-                    getRangeCounts('Adultos', currentYear, true),
-                    getRangeCounts('Adultos', lastYear, true),
-                    getRangeCounts('Pediatría', currentYear, true),
-                    getRangeCounts('Pediatría', lastYear, true)
+                    getRangeCounts('Adultos', targetYear),
+                    getRangeCounts('Adultos', lastYear),
+                    getRangeCounts('Pediatría', targetYear),
+                    getRangeCounts('Pediatría', lastYear)
                 ]);
 
                 setStats({
@@ -162,7 +177,8 @@ const Dashboard = () => {
                     comparison: {
                         adultos: { current: currentA, previous: prevA },
                         pediatria: { current: currentP, previous: prevP },
-                        monthName: monthNames[currentMonth]
+                        monthName: monthNames[targetMonth],
+                        year: targetYear
                     },
                     loading: false
                 });
@@ -241,12 +257,14 @@ const Dashboard = () => {
                         current={stats.comparison.adultos.current}
                         previous={stats.comparison.adultos.previous}
                         monthName={stats.comparison.monthName}
+                        year={stats.comparison.year}
                     />
                     <ComparisonCard 
                         title="Atenciones Pediatría"
                         current={stats.comparison.pediatria.current}
                         previous={stats.comparison.pediatria.previous}
                         monthName={stats.comparison.monthName}
+                        year={stats.comparison.year}
                     />
                 </div>
             </div>
