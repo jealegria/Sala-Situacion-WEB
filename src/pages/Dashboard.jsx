@@ -48,7 +48,8 @@ const Dashboard = () => {
             adultos: { daily: 0, monthly: 0, total: 0 },
             pediatria: { daily: 0, monthly: 0, total: 0 }
         },
-        loading: true
+        loading: true,
+        latestDate: null
     });
     const [conexion, setConexion] = useState(null);
 
@@ -72,11 +73,19 @@ const Dashboard = () => {
                     get2025Counts('Pediatría')
                 ]);
 
+                // Consultar la fecha del último registro
+                const { data: latest } = await supabase.from('registros_guardia')
+                    .select('fecha_de_ingreso')
+                    .order('fecha_de_ingreso', { ascending: false })
+                    .limit(1)
+                    .single();
+
                 setStats({
                     avg2025: {
                         adultos: { total: totalA, daily: totalA / 365, monthly: totalA / 12 },
                         pediatria: { total: totalP, daily: totalP / 365, monthly: totalP / 12 }
                     },
+                    latestDate: latest ? latest.fecha_de_ingreso : null,
                     loading: false
                 });
                 setConexion('conectado');
@@ -108,9 +117,17 @@ const Dashboard = () => {
                     <Activity className="text-[#2f81f7]" size={28} />
                     Sala de Situación HPN
                 </h1>
-                <div className="flex items-center gap-2 text-[#7d8590] text-[10px] font-bold uppercase tracking-widest">
-                    <span className={`w-2 h-2 rounded-full ${conexion === 'conectado' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                    {conexion === 'conectado' ? 'Datos Online' : 'Offline'}
+                <div className="flex flex-wrap items-center gap-4 text-[#7d8590] text-[10px] font-bold uppercase tracking-widest">
+                    <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${conexion === 'conectado' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                        {conexion === 'conectado' ? 'Datos Online' : 'Offline'}
+                    </div>
+                    {stats.latestDate && (
+                        <div className="flex items-center gap-2 border-l border-[#30363d] pl-4">
+                            <span className="text-[#2f81f7] opacity-70">Última Carga:</span>
+                            <span className="text-[#e6edf3]">{new Date(stats.latestDate).toLocaleDateString('es-AR')}</span>
+                        </div>
+                    )}
                 </div>
              </div>
 
