@@ -12,26 +12,26 @@ const ServiceStats = ({ title, dailyAvg, monthlyAvg, totalYear, icon: Icon, colo
             </div>
             <div>
                 <h2 className="text-lg font-bold text-[#e6edf3] font-ibm-plex leading-tight">{title}</h2>
-                <p className="text-[9px] text-[#7d8590] font-bold tracking-[0.2em] uppercase opacity-50">Métricas Históricas 2025</p>
+                <p className="text-[9px] text-[#7d8590] font-bold tracking-[0.2em] uppercase opacity-50">Atenciones en Guardia 2025</p>
             </div>
         </div>
         
         <div className="grid grid-cols-3 gap-4 divide-x divide-[#30363d]/50">
             <div className="pr-2">
-                <p className="text-[#8b949e] text-[10px] font-bold uppercase tracking-wider mb-1 opacity-60 leading-tight">Total Anual</p>
+                <p className="text-[#8b949e] text-[10px] font-bold uppercase tracking-wider mb-1 opacity-60 leading-tight">Atenciones Totales</p>
                 <div className="flex items-baseline gap-1">
                     <span className="text-2xl font-black text-[#e6edf3] font-ibm-plex">{totalYear.toLocaleString()}</span>
                 </div>
             </div>
             <div className="px-4">
-                <p className="text-[#8b949e] text-[10px] font-bold uppercase tracking-wider mb-1 opacity-60 leading-tight">Prom. Diario</p>
+                <p className="text-[#8b949e] text-[10px] font-bold uppercase tracking-wider mb-1 opacity-60 leading-tight">Promedio Diario</p>
                 <div className="flex items-baseline gap-1">
                     <span className="text-2xl font-black text-[#e6edf3] font-ibm-plex">{Math.round(dailyAvg)}</span>
                     <span className="text-[#7d8590] text-[10px] font-medium uppercase">at/d</span>
                 </div>
             </div>
             <div className="pl-4">
-                <p className="text-[#8b949e] text-[10px] font-bold uppercase tracking-wider mb-1 opacity-60 leading-tight">Prom. Mensual</p>
+                <p className="text-[#8b949e] text-[10px] font-bold uppercase tracking-wider mb-1 opacity-60 leading-tight">Promedio Mensual</p>
                 <div className="flex items-baseline gap-1">
                     <span className="text-2xl font-black text-[#e6edf3] font-ibm-plex">{Math.round(monthlyAvg).toLocaleString()}</span>
                     <span className="text-[#7d8590] text-[10px] font-medium uppercase">at/m</span>
