@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Users, CalendarDays, Loader2, Activity, Hash } from 'lucide-center';
+import { Users, CalendarDays, Loader2, Activity, Hash } from 'lucide-react';
 
 const ServiceStats = ({ title, dailyAvg, monthlyAvg, totalYear, icon: Icon, colorClass }) => (
     <div className="bg-[#1c2128]/50 border border-[#30363d] rounded-2xl p-6 backdrop-blur-sm relative overflow-hidden group transition-all hover:bg-[#1c2128]/80">
