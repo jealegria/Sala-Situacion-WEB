@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Users, CalendarDays, Loader2, Activity, Hash, ArrowUpRight, ArrowDownRight, TrendingUp } from 'lucide-react';
+import { Users, CalendarDays, Loader2, Activity, Hash } from 'lucide-react';
 
 const ServiceStats = ({ title, dailyAvg, monthlyAvg, totalYear, icon: Icon, colorClass }) => (
     <div className="bg-[#1c2128]/50 border border-[#30363d] rounded-2xl p-6 backdrop-blur-sm relative overflow-hidden group transition-all hover:bg-[#1c2128]/80">
@@ -47,60 +47,11 @@ const ServiceStats = ({ title, dailyAvg, monthlyAvg, totalYear, icon: Icon, colo
     </div>
 );
 
-const ComparisonCard = ({ title, current, previous, monthName, year }) => {
-    const diff = current - previous;
-    const percent = previous > 0 ? (diff / previous) * 100 : 0;
-    const isIncrease = diff > 0;
-
-    return (
-        <div className="bg-[#1c2128]/50 border border-[#30363d] rounded-2xl p-7 backdrop-blur-sm group hover:border-[#2f81f7]/40 transition-all border-l-4" style={{ borderLeftColor: isIncrease ? '#f97316' : '#10b981' }}>
-            <div className="flex justify-between items-start mb-4">
-                <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <TrendingUp size={14} className="text-[#2f81f7]" />
-                        <h3 className="text-[11px] font-black text-[#8b949e] uppercase tracking-[0.2em]">{title}</h3>
-                    </div>
-                    <p className="text-[#e6edf3] text-lg font-bold">Resumen de {monthName}</p>
-                </div>
-                <div className={`text-xs font-bold px-2.5 py-1 rounded-full ${isIncrease ? 'bg-orange-500/10 text-orange-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                    {isIncrease ? '↑' : '↓'} {Math.abs(percent).toFixed(1)}%
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-8 mt-6">
-                <div className="relative">
-                    <p className="text-[#7d8590] text-[10px] font-bold uppercase tracking-wider mb-1">Año {year}</p>
-                    <p className="text-4xl font-black text-[#e6edf3] tracking-tight">{current.toLocaleString()}</p>
-                </div>
-                <div className="relative opacity-60">
-                    <p className="text-[#7d8590] text-[10px] font-bold uppercase tracking-wider mb-1">Año {year - 1}</p>
-                    <p className="text-3xl font-bold text-[#8b949e] tracking-tight">{previous.toLocaleString()}</p>
-                </div>
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-[#30363d]/50">
-                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
-                    <span className="text-[#7d8590]">Diferencia Nominal</span>
-                    <span className={isIncrease ? 'text-orange-500' : 'text-emerald-500'}>
-                        {isIncrease ? '+' : ''}{diff.toLocaleString()} atenciones
-                    </span>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 const Dashboard = () => {
     const [stats, setStats] = useState({
         avg2025: {
             adultos: { daily: 0, monthly: 0, total: 0 },
             pediatria: { daily: 0, monthly: 0, total: 0 }
-        },
-        comparison: {
-            adultos: { current: 0, previous: 0 },
-            pediatria: { current: 0, previous: 0 },
-            monthName: "",
-            year: new Date().getFullYear()
         },
         loading: true
     });
@@ -126,69 +77,10 @@ const Dashboard = () => {
                     get2025Counts('Pediatría')
                 ]);
 
-                // 1. Obtener la fecha límite (último registro absoluto)
-                const { data: latestRecord } = await supabase
-                    .from('registros_guardia')
-                    .select('fecha_de_ingreso')
-                    .order('fecha_de_ingreso', { ascending: false })
-                    .limit(1)
-                    .single();
-
-                if (!latestRecord) throw new Error("No hay datos en la base");
-
-                const limitDate = new Date(latestRecord.fecha_de_ingreso);
-                let targetMonth = limitDate.getMonth();
-                let targetYear = limitDate.getFullYear();
-
-                // 2. Verificar si el mes está completo (comparando el día del último registro vs el último día de ese mes)
-                const lastDayOfTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-                
-                if (limitDate.getDate() < lastDayOfTargetMonth) {
-                    // Si no está completo, retrocedemos un mes
-                    const prevMonthDate = new Date(targetYear, targetMonth - 1, 1);
-                    targetMonth = prevMonthDate.getMonth();
-                    targetYear = prevMonthDate.getFullYear();
-                }
-
-                // 3. Preparar rangos para el mes completo detectado vs mismo mes año pasado
-                const lastYear = targetYear - 1;
-                const monthStr = String(targetMonth + 1).padStart(2, '0');
-                const lastDayOfMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-                
-                const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
-                const getFullMonthCount = async (serv, year) => {
-                    const start = `${year}-${monthStr}-01`;
-                    const end = `${year}-${monthStr}-${lastDayOfMonth} 23:59:59`;
-                    
-                    const { count, error } = await supabase.from('registros_guardia')
-                        .select('id', { count: 'exact', head: true })
-                        .eq('servicio', serv)
-                        .gte('fecha_de_ingreso', start)
-                        .lte('fecha_de_ingreso', end);
-                    
-                    if (error) throw error;
-                    return count || 0;
-                };
-
-                // 4. Ejecutar comparativa
-                const [currentA, prevA, currentP, prevP] = await Promise.all([
-                    getFullMonthCount('Adultos', targetYear),
-                    getFullMonthCount('Adultos', lastYear),
-                    getFullMonthCount('Pediatría', targetYear),
-                    getFullMonthCount('Pediatría', lastYear)
-                ]);
-
                 setStats({
                     avg2025: {
                         adultos: { total: totalA, daily: totalA / 365, monthly: totalA / 12 },
                         pediatria: { total: totalP, daily: totalP / 365, monthly: totalP / 12 }
-                    },
-                    comparison: {
-                        adultos: { current: currentA, previous: prevA },
-                        pediatria: { current: currentP, previous: prevP },
-                        monthName: monthNames[targetMonth],
-                        year: targetYear
                     },
                     loading: false
                 });
@@ -250,31 +142,6 @@ const Dashboard = () => {
                         monthlyAvg={stats.avg2025.pediatria.monthly} 
                         icon={Users} 
                         colorClass="bg-purple-500" 
-                    />
-                </div>
-            </div>
-
-            {/* Interannual Comparison Section */}
-            <div className="space-y-8 mt-12 animate-in slide-in-from-bottom duration-1000">
-                <div className="flex items-center gap-3">
-                    <TrendingUp className="text-[#2f81f7]" size={20} />
-                    <h2 className="text-[#e6edf3] font-bold text-lg tracking-widest uppercase">Comparativa Interanual</h2>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <ComparisonCard 
-                        title="Atenciones Adultos"
-                        current={stats.comparison.adultos.current}
-                        previous={stats.comparison.adultos.previous}
-                        monthName={stats.comparison.monthName}
-                        year={stats.comparison.year}
-                    />
-                    <ComparisonCard 
-                        title="Atenciones Pediatría"
-                        current={stats.comparison.pediatria.current}
-                        previous={stats.comparison.pediatria.previous}
-                        monthName={stats.comparison.monthName}
-                        year={stats.comparison.year}
                     />
                 </div>
             </div>
