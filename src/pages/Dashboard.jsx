@@ -123,8 +123,8 @@ const Dashboard = () => {
                     </div>
                     {stats.latestDate && (
                         <div className="flex items-center gap-2 border-l border-[#30363d] pl-4">
-                            <span className="text-[#2f81f7] opacity-70">Última Carga:</span>
-                            <span className="text-[#e6edf3]">{new Date(stats.latestDate).toLocaleDateString('es-AR')}</span>
+                            <span className="text-[#2f81f7] opacity-70">Última Fecha en DB:</span>
+                            <span className="text-[#e6edf3] font-mono">{stats.latestDate}</span>
                         </div>
                     )}
                 </div>
