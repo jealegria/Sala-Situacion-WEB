@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Users, CalendarDays, Loader2, Activity, Hash, TrendingUp } from 'lucide-react';
+import { Users, CalendarDays, Loader2, Activity, Hash } from 'lucide-center';
 
 const ServiceStats = ({ title, dailyAvg, monthlyAvg, totalYear, icon: Icon, colorClass }) => (
     <div className="bg-[#1c2128]/50 border border-[#30363d] rounded-2xl p-6 backdrop-blur-sm relative overflow-hidden group transition-all hover:bg-[#1c2128]/80">
@@ -47,57 +47,11 @@ const ServiceStats = ({ title, dailyAvg, monthlyAvg, totalYear, icon: Icon, colo
     </div>
 );
 
-const ComparisonCard = ({ title, monthName, year, current, previous }) => {
-    const diff = current - previous;
-    const percent = previous > 0 ? (diff / previous) * 100 : 0;
-    const isIncrease = diff > 0;
-
-    return (
-        <div className="bg-[#1c2128]/50 border border-[#30363d] rounded-2xl p-6 backdrop-blur-sm group hover:border-[#2f81f7]/40 transition-all">
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h3 className="text-[#8b949e] text-[10px] font-bold uppercase tracking-widest">{title}</h3>
-                    <p className="text-[#e6edf3] font-bold text-lg">Resumen de {monthName} {year}</p>
-                </div>
-                <div className={`px-2.5 py-1 rounded-full text-xs font-bold ${isIncrease ? 'bg-orange-500/10 text-orange-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                    {isIncrease ? '↑' : '↓'} {Math.abs(percent).toFixed(1)}%
-                </div>
-            </div>
-
-            <div className="space-y-4">
-                <div className="flex justify-between items-end">
-                    <div>
-                        <p className="text-[#7d8590] text-[10px] font-bold uppercase tracking-wider mb-1">Total {year}</p>
-                        <p className="text-4xl font-black text-[#e6edf3]">{current.toLocaleString()}</p>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-[#7d8590] text-[10px] font-bold uppercase tracking-wider mb-1">Total {year - 1}</p>
-                        <p className="text-xl font-bold text-[#8b949e]">{previous.toLocaleString()}</p>
-                    </div>
-                </div>
-
-                <div className="pt-4 border-t border-[#30363d]/50 flex justify-between items-center">
-                    <span className="text-[#7d8590] text-[10px] font-bold uppercase tracking-widest">Diferencia Nominal</span>
-                    <span className={`text-sm font-bold ${isIncrease ? 'text-orange-500' : 'text-emerald-500'}`}>
-                        {isIncrease ? '+' : ''}{diff.toLocaleString()} atenciones
-                    </span>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 const Dashboard = () => {
     const [stats, setStats] = useState({
         avg2025: {
             adultos: { daily: 0, monthly: 0, total: 0 },
             pediatria: { daily: 0, monthly: 0, total: 0 }
-        },
-        comparison: {
-            adultos: { current: 0, previous: 0 },
-            pediatria: { current: 0, previous: 0 },
-            monthName: "",
-            year: 0
         },
         loading: true
     });
@@ -123,62 +77,10 @@ const Dashboard = () => {
                     get2025Counts('Pediatría')
                 ]);
 
-                // --- NUEVA LÓGICA DE COMPARACIÓN ---
-                // 1. Obtener fecha límite absoluta
-                const { data: latest } = await supabase
-                    .from('registros_guardia')
-                    .select('fecha_de_ingreso')
-                    .order('fecha_de_ingreso', { ascending: false })
-                    .limit(1)
-                    .single();
-
-                if (!latest) throw new Error("No hay datos");
-
-                const limitDate = new Date(latest.fecha_de_ingreso);
-                let targetMonth = limitDate.getMonth();
-                let targetYear = limitDate.getFullYear();
-
-                // 2. Verificar si el mes está completo
-                const lastDayOfThatMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-                if (limitDate.getDate() < lastDayOfThatMonth) {
-                    const prevDate = new Date(targetYear, targetMonth - 1, 1);
-                    targetMonth = prevDate.getMonth();
-                    targetYear = prevDate.getFullYear();
-                }
-
-                // 3. Obtener totales mes completo vs año anterior
-                const monthStr = String(targetMonth + 1).padStart(2, '0');
-                const lastDayOfMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-                const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
-                const getMonthCount = async (serv, year) => {
-                    const start = `${year}-${monthStr}-01`;
-                    const end = `${year}-${monthStr}-${lastDayOfMonth} 23:59:59`;
-                    const { count } = await supabase.from('registros_guardia')
-                        .select('id', { count: 'exact', head: true })
-                        .eq('servicio', serv)
-                        .gte('fecha_de_ingreso', start)
-                        .lte('fecha_de_ingreso', end);
-                    return count || 0;
-                };
-
-                const [cA, pA, cP, pP] = await Promise.all([
-                    getMonthCount('Adultos', targetYear),
-                    getMonthCount('Adultos', targetYear - 1),
-                    getMonthCount('Pediatría', targetYear),
-                    getMonthCount('Pediatría', targetYear - 1)
-                ]);
-
                 setStats({
                     avg2025: {
                         adultos: { total: totalA, daily: totalA / 365, monthly: totalA / 12 },
                         pediatria: { total: totalP, daily: totalP / 365, monthly: totalP / 12 }
-                    },
-                    comparison: {
-                        adultos: { current: cA, previous: pA },
-                        pediatria: { current: cP, previous: pP },
-                        monthName: monthNames[targetMonth],
-                        year: targetYear
                     },
                     loading: false
                 });
@@ -240,31 +142,6 @@ const Dashboard = () => {
                         monthlyAvg={stats.avg2025.pediatria.monthly} 
                         icon={Users} 
                         colorClass="bg-purple-500" 
-                    />
-                </div>
-            </div>
-
-            {/* Comparison Section */}
-            <div className="space-y-8">
-                <div className="flex items-center gap-3">
-                    <TrendingUp className="text-[#2f81f7]" size={20} />
-                    <h2 className="text-[#e6edf3] font-bold text-lg tracking-widest uppercase">Comparativa Interanual</h2>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <ComparisonCard 
-                        title="Atenciones Adultos"
-                        monthName={stats.comparison.monthName}
-                        year={stats.comparison.year}
-                        current={stats.comparison.adultos.current}
-                        previous={stats.comparison.adultos.previous}
-                    />
-                    <ComparisonCard 
-                        title="Atenciones Pediatría"
-                        monthName={stats.comparison.monthName}
-                        year={stats.comparison.year}
-                        current={stats.comparison.pediatria.current}
-                        previous={stats.comparison.pediatria.previous}
                     />
                 </div>
             </div>
