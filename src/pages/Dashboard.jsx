@@ -73,19 +73,18 @@ const Dashboard = () => {
                     get2025Counts('Pediatría')
                 ]);
 
-                // Consultar la fecha del último registro
-                const { data: latest } = await supabase.from('registros_guardia')
+                // Consultar la fecha del último registro (Ajuste de robustez)
+                const { data: latestData } = await supabase.from('registros_guardia')
                     .select('fecha_de_ingreso')
                     .order('fecha_de_ingreso', { ascending: false })
-                    .limit(1)
-                    .single();
+                    .limit(1);
 
                 setStats({
                     avg2025: {
                         adultos: { total: totalA, daily: totalA / 365, monthly: totalA / 12 },
                         pediatria: { total: totalP, daily: totalP / 365, monthly: totalP / 12 }
                     },
-                    latestDate: latest ? latest.fecha_de_ingreso : null,
+                    latestDate: latestData && latestData.length > 0 ? latestData[0].fecha_de_ingreso : null,
                     loading: false
                 });
                 setConexion('conectado');
