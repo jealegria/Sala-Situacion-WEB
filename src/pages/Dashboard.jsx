@@ -57,19 +57,18 @@ const Dashboard = () => {
         async function loadDashboardData() {
             setStats(s => ({ ...s, loading: true }));
             try {
-                // 1. Obtener la última fecha de carga para el encabezado
-                const { data: latestData } = await supabase.from('registros_guardia')
+                // 1. Obtener la última fecha de carga desde la vista
+                const { data: latestData } = await supabase.from('v_guardia_con_calendario')
                     .select('fecha_de_ingreso')
                     .order('fecha_de_ingreso', { ascending: false })
                     .limit(1);
 
-                // 2. Consulta de conteo para 2025 usando JOIN con dim_calendario
+                // 2. Consulta de conteo para 2025 usando la VISTA (Join pre-procesado)
                 const get2025Counts = async (serv) => {
-                    // Usamos !inner para forzar el join y filtrar por el año del calendario
-                    const { count, error } = await supabase.from('registros_guardia')
-                        .select('id, dim_calendario!inner(ano)', { count: 'exact', head: true })
+                    const { count, error } = await supabase.from('v_guardia_con_calendario')
+                        .select('id', { count: 'exact', head: true })
                         .eq('servicio', serv)
-                        .eq('dim_calendario.ano', 2025);
+                        .eq('cal_ano', 2025);
                     
                     if (error) throw error;
                     return count || 0;
