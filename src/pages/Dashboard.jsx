@@ -48,7 +48,6 @@ const Dashboard = () => {
             adultos: { daily: 0, monthly: 0, total: 0 },
             pediatria: { daily: 0, monthly: 0, total: 0 }
         },
-        year: new Date().getFullYear(),
         loading: true,
         latestDate: null
     });
@@ -58,31 +57,27 @@ const Dashboard = () => {
         async function loadDashboardData() {
             setStats(s => ({ ...s, loading: true }));
             try {
-                // 1. Primero obtenemos la última fecha para saber qué año mostrar
+                // 1. Obtener la última fecha de carga para el encabezado
                 const { data: latestData } = await supabase.from('registros_guardia')
                     .select('fecha_de_ingreso')
                     .order('fecha_de_ingreso', { ascending: false })
                     .limit(1);
 
-                const lastDate = latestData && latestData.length > 0 ? new Date(latestData[0].fecha_de_ingreso) : new Date();
-                const currentYear = lastDate.getFullYear();
-                const startOfYear = `${currentYear}-01-01`;
-                const endOfYear = `${currentYear + 1}-01-01`;
-
-                const getCounts = async (serv) => {
+                // 2. Consulta de conteo para 2025 usando JOIN con dim_calendario
+                const get2025Counts = async (serv) => {
+                    // Usamos !inner para forzar el join y filtrar por el año del calendario
                     const { count, error } = await supabase.from('registros_guardia')
-                        .select('id', { count: 'exact', head: true })
+                        .select('id, dim_calendario!inner(ano)', { count: 'exact', head: true })
                         .eq('servicio', serv)
-                        .gte('fecha_de_ingreso', startOfYear)
-                        .lt('fecha_de_ingreso', endOfYear);
+                        .eq('dim_calendario.ano', 2025);
                     
                     if (error) throw error;
                     return count || 0;
                 };
 
                 const [totalA, totalP] = await Promise.all([
-                    getCounts('Adultos'),
-                    getCounts('Pediatría')
+                    get2025Counts('Adultos'),
+                    get2025Counts('Pediatría')
                 ]);
 
                 setStats({
@@ -90,7 +85,6 @@ const Dashboard = () => {
                         adultos: { total: totalA, daily: totalA / 365, monthly: totalA / 12 },
                         pediatria: { total: totalP, daily: totalP / 365, monthly: totalP / 12 }
                     },
-                    year: currentYear,
                     latestDate: latestData && latestData.length > 0 ? latestData[0].fecha_de_ingreso : null,
                     loading: false
                 });
@@ -153,7 +147,7 @@ const Dashboard = () => {
             <div className="space-y-8">
                 <div className="flex items-center gap-3">
                     <CalendarDays className="text-[#2f81f7]" size={20} />
-                    <h2 className="text-[#e6edf3] font-bold text-lg tracking-widest uppercase">Estadísticas {stats.year}</h2>
+                    <h2 className="text-[#e6edf3] font-bold text-lg tracking-widest uppercase">Estadísticas 2025</h2>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
