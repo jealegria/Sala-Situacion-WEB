@@ -44,10 +44,11 @@ const ServiceStats = ({ title, dailyAvg, monthlyAvg, totalYear, icon: Icon, colo
 
 const Dashboard = () => {
     const [stats, setStats] = useState({
-        avg2025: {
+        yearly: {
             adultos: { daily: 0, monthly: 0, total: 0 },
             pediatria: { daily: 0, monthly: 0, total: 0 }
         },
+        year: new Date().getFullYear(),
         loading: true,
         latestDate: null
     });
@@ -57,33 +58,39 @@ const Dashboard = () => {
         async function loadDashboardData() {
             setStats(s => ({ ...s, loading: true }));
             try {
-                const get2025Counts = async (serv) => {
+                // 1. Primero obtenemos la última fecha para saber qué año mostrar
+                const { data: latestData } = await supabase.from('registros_guardia')
+                    .select('fecha_de_ingreso')
+                    .order('fecha_de_ingreso', { ascending: false })
+                    .limit(1);
+
+                const lastDate = latestData && latestData.length > 0 ? new Date(latestData[0].fecha_de_ingreso) : new Date();
+                const currentYear = lastDate.getFullYear();
+                const startOfYear = `${currentYear}-01-01`;
+                const endOfYear = `${currentYear + 1}-01-01`;
+
+                const getCounts = async (serv) => {
                     const { count, error } = await supabase.from('registros_guardia')
                         .select('id', { count: 'exact', head: true })
                         .eq('servicio', serv)
-                        .gte('fecha_de_ingreso', '2025-01-01')
-                        .lt('fecha_de_ingreso', '2026-01-01');
+                        .gte('fecha_de_ingreso', startOfYear)
+                        .lt('fecha_de_ingreso', endOfYear);
                     
                     if (error) throw error;
                     return count || 0;
                 };
 
                 const [totalA, totalP] = await Promise.all([
-                    get2025Counts('Adultos'),
-                    get2025Counts('Pediatría')
+                    getCounts('Adultos'),
+                    getCounts('Pediatría')
                 ]);
 
-                // Consultar la fecha del último registro (Ajuste de robustez)
-                const { data: latestData } = await supabase.from('registros_guardia')
-                    .select('fecha_de_ingreso')
-                    .order('fecha_de_ingreso', { ascending: false })
-                    .limit(1);
-
                 setStats({
-                    avg2025: {
+                    yearly: {
                         adultos: { total: totalA, daily: totalA / 365, monthly: totalA / 12 },
                         pediatria: { total: totalP, daily: totalP / 365, monthly: totalP / 12 }
                     },
+                    year: currentYear,
                     latestDate: latestData && latestData.length > 0 ? latestData[0].fecha_de_ingreso : null,
                     loading: false
                 });
@@ -98,6 +105,18 @@ const Dashboard = () => {
         
         loadDashboardData();
     }, []);
+
+    const formatFullDate = (dateStr) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        return d.toLocaleString('es-AR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }) + ' hs';
+    };
 
     if (stats.loading) {
         return (
@@ -123,8 +142,8 @@ const Dashboard = () => {
                     </div>
                     {stats.latestDate && (
                         <div className="flex items-center gap-2 border-l border-[#30363d] pl-4">
-                            <span className="text-[#2f81f7] opacity-70">Última Fecha en DB:</span>
-                            <span className="text-[#e6edf3] font-mono">{stats.latestDate}</span>
+                            <span className="text-[#2f81f7] opacity-70">Última Carga:</span>
+                            <span className="text-[#e6edf3]">{formatFullDate(stats.latestDate)}</span>
                         </div>
                     )}
                 </div>
@@ -134,23 +153,23 @@ const Dashboard = () => {
             <div className="space-y-8">
                 <div className="flex items-center gap-3">
                     <CalendarDays className="text-[#2f81f7]" size={20} />
-                    <h2 className="text-[#e6edf3] font-bold text-lg tracking-widest uppercase">Estadísticas 2025</h2>
+                    <h2 className="text-[#e6edf3] font-bold text-lg tracking-widest uppercase">Estadísticas {stats.year}</h2>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <ServiceStats 
                         title="Sector Adultos" 
-                        totalYear={stats.avg2025.adultos.total}
-                        dailyAvg={stats.avg2025.adultos.daily} 
-                        monthlyAvg={stats.avg2025.adultos.monthly} 
+                        totalYear={stats.yearly.adultos.total}
+                        dailyAvg={stats.yearly.adultos.daily} 
+                        monthlyAvg={stats.yearly.adultos.monthly} 
                         icon={Users} 
                         colorClass="bg-blue-500" 
                     />
                     <ServiceStats 
                         title="Sector Pediatría" 
-                        totalYear={stats.avg2025.pediatria.total}
-                        dailyAvg={stats.avg2025.pediatria.daily} 
-                        monthlyAvg={stats.avg2025.pediatria.monthly} 
+                        totalYear={stats.yearly.pediatria.total}
+                        dailyAvg={stats.yearly.pediatria.daily} 
+                        monthlyAvg={stats.yearly.pediatria.monthly} 
                         icon={Users} 
                         colorClass="bg-purple-500" 
                     />
